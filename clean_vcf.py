@@ -6,7 +6,7 @@ import sys
 from gzopen import gzopen
 
 JohnPoolCode = {
-    '2': 'mitochondrion_genome',
+    '2': 'dmel_mitochondrion_genome',
     '3': '2L',
     '4': 'X',
     '5': '3L',
@@ -17,7 +17,7 @@ JohnPoolCode = {
 
 contigCode = {
     '##contig=<ID=2,length=19517>':
-        '##contig=<ID=mitochondrion_genome,length=19517>',
+        '##contig=<ID=dmel_mitochondrion_genome,length=19517>',
     '##contig=<ID=3,length=23011544>': '##contig=<ID=2L,length=23011544>',
     '##contig=<ID=4,length=22422827>': '##contig=<ID=X,length=22422827>',
     '##contig=<ID=5,length=24543557>': '##contig=<ID=3L,length=24543557>',
@@ -32,20 +32,28 @@ def parse_and_print_comment(line):
   sys.stdout.write(line)
 
 def main(f):
+  kept = 0
+  thrown = 0
   for line in f:
     if line[0] == '#':
       parse_and_print_comment(line)
       continue
     items = line.split()
     if items[3] == items[4]:
+      thrown += 1
       continue
     if items[0] in JohnPoolCode:
+      kept += 1
       items[0] = JohnPoolCode[items[0]]
       print '\t'.join(items)
+    else:
+      thrown += 1
+  return (kept, thrown)
 
 if __name__ == '__main__':
   try:
     f = gzopen(sys.argv[1])
   except IndexError:
     f = sys.stdin
-  main(f)
+  info = main(f)
+  sys.stderr.write('Lines kept:%d\nLines thrown:%d\n' % info)
