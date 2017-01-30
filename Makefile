@@ -47,6 +47,7 @@ b3886_all_sites_w_indels.vcf:
 	vcf-concat $(DATDIR)/b3886_sites_full.vcf $(DATDIR)/b3886_INDELS.vcf | \
 		python clean_vcf.py > b3886_all_sites_w_indels.vcf
 
+.INTERMEDIATE: t7_all_sites_w_indels_final.vcf
 t7_all_sites_w_indels_final.vcf: t7_all_sites_w_indels.vcf dmel-r5-clean.dict
 	java -jar $(PICARD) SortVcf \
 		I=t7_all_sites_w_indels.vcf \
@@ -54,6 +55,7 @@ t7_all_sites_w_indels_final.vcf: t7_all_sites_w_indels.vcf dmel-r5-clean.dict
 		VERBOSITY=WARNING \
 		SEQUENCE_DICTIONARY=dmel-r5-clean.dict
 
+.INTERMEDIATE: b3886_all_sites_w_indels_final.vcf
 b3886_all_sites_w_indels_final.vcf: b3886_all_sites_w_indels.vcf dmel-r5-clean.dict
 	java -jar $(PICARD) SortVcf \
 		I=b3886_all_sites_w_indels.vcf \
@@ -66,14 +68,17 @@ A7.fasta: dmel-r5-clean.fasta t7_all_sites_w_indels_final.vcf
 		-T FastaAlternateReferenceMaker \
 		-R dmel-r5-clean.fasta \
 		-V t7_all_sites_w_indels_final.vcf \
-		-o A7.fasta
+		-o A7.fasta && \
+	rm t7_all_sites_w_indels_final.vcf.idx
+
 
 A6.fasta: dmel-r5-clean.fasta b3886_all_sites_w_indels_final.vcf
 	java -jar $(GATK) \
 		-T FastaAlternateReferenceMaker \
 		-R dmel-r5-clean.fasta \
 		-V b3886_all_sites_w_indels_final.vcf \
-		-o A6.fasta
+		-o A6.fasta && \
+	rm b3886_all_sites_w_indels_final.vcf.idx
 
 clean:
 	rm -rf *.vcf *.idx *.fai *.fasta *.dict $(INDEXFILES) $(TMPINDEXFILES)

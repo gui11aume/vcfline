@@ -32,28 +32,25 @@ def parse_and_print_comment(line):
   sys.stdout.write(line)
 
 def main(f):
-  kept = 0
-  thrown = 0
+  SNPs = 0
   for line in f:
     if line[0] == '#':
       parse_and_print_comment(line)
       continue
     items = line.split()
     if items[3] == items[4]:
-      thrown += 1
       continue
     if items[0] in JohnPoolCode:
-      kept += 1
+      if items[4] != '.': SNPs += 1
       items[0] = JohnPoolCode[items[0]]
       print '\t'.join(items)
-    else:
-      thrown += 1
-  return (kept, thrown)
+
+  return SNPs
 
 if __name__ == '__main__':
   try:
     f = gzopen(sys.argv[1])
   except IndexError:
     f = sys.stdin
-  info = main(f)
-  sys.stderr.write('Lines kept:%d\nLines thrown:%d\n' % info)
+  SNPs = main(f)
+  sys.stderr.write('SNPs: %d\n' % SNPs)
