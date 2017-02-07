@@ -15,7 +15,12 @@ INDEXFILES= \
 	A6.fasta.ann A7.fasta.ann \
 	A6.fasta.bwt A7.fasta.bwt \
 	A6.fasta.pac A7.fasta.pac \
-	A6.fasta.sa  A7.fasta.sa
+	A6.fasta.sa  A7.fasta.sa  \
+	A6_calibration.fasta.amb A7_calibration.fasta.amb \
+	A6_calibration.fasta.ann A7_calibration.fasta.ann \
+	A6_calibration.fasta.bwt A7_calibration.fasta.bwt \
+	A6_calibration.fasta.pac A7_calibration.fasta.pac \
+	A6_calibration.fasta.sa  A7_calibration.fasta.sa
 
 all: $(INDEXFILES)
 
@@ -55,6 +60,11 @@ t7_all_sites_w_indels_final.vcf: t7_all_sites_w_indels.vcf dmel-r5-clean.dict
 		VERBOSITY=WARNING \
 		SEQUENCE_DICTIONARY=dmel-r5-clean.dict
 
+.INTERMEDIATE: b3886_calibration.vcf
+b3886_calibration.vcf: b3886_all_sites_w_indels_final.vcf
+	python create_calibration_vcf.py \
+		b3886_all_sites_w_indels_final.vcf > b3886_calibration.vcf
+
 .INTERMEDIATE: b3886_all_sites_w_indels_final.vcf
 b3886_all_sites_w_indels_final.vcf: b3886_all_sites_w_indels.vcf dmel-r5-clean.dict
 	java -jar $(PICARD) SortVcf \
@@ -62,6 +72,11 @@ b3886_all_sites_w_indels_final.vcf: b3886_all_sites_w_indels.vcf dmel-r5-clean.d
 		O=b3886_all_sites_w_indels_final.vcf \
 		VERBOSITY=WARNING \
 		SEQUENCE_DICTIONARY=dmel-r5-clean.dict
+
+.INTERMEDIATE: t7_calibration.vcf
+t7_calibration.vcf: t7_all_sites_w_indels_final.vcf
+	python create_calibration_vcf.py \
+		t7_all_sites_w_indels_final.vcf > t7_calibration.vcf
 
 A7.fasta: dmel-r5-clean.fasta t7_all_sites_w_indels_final.vcf
 	java -jar $(GATK) \
@@ -79,6 +94,23 @@ A6.fasta: dmel-r5-clean.fasta b3886_all_sites_w_indels_final.vcf
 		-V b3886_all_sites_w_indels_final.vcf \
 		-o A6.fasta && \
 	rm b3886_all_sites_w_indels_final.vcf.idx
+
+A7_calibration.fasta: dmel-r5-clean.fasta t7_calibration.vcf
+	java -jar $(GATK) \
+		-T FastaAlternateReferenceMaker \
+		-R dmel-r5-clean.fasta \
+		-V t7_calibration.vcf \
+		-o A7_calibration.fasta && \
+	rm t7_calibration.vcf.idx
+
+
+A6_calibration.fasta: dmel-r5-clean.fasta b3886_calibration.vcf
+	java -jar $(GATK) \
+		-T FastaAlternateReferenceMaker \
+		-R dmel-r5-clean.fasta \
+		-V b3886_calibration.vcf \
+		-o A6_calibration.fasta && \
+	rm b3886_calibration.vcf.idx
 
 clean:
 	rm -rf *.vcf *.idx *.fai *.fasta *.dict $(INDEXFILES) $(TMPINDEXFILES)
