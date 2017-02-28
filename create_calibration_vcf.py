@@ -21,7 +21,8 @@ def main(f):
             # Insertion or deletion.
             items[4] = change(items[4])
          else:
-            # SNP
+            # SNP. In principle this command will always produce
+            # the same variant if the file is re-run.
             items[4] = next(iter(NT.difference(items[3:5])))
             sys.stdout.write('\t'.join(items))
       else:

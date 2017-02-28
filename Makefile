@@ -28,15 +28,18 @@ all: $(INDEXFILES)
 dmel-all-chromosome-r5.57.fasta.gz:
 	wget ftp://flybase.org/genomes/Drosophila_melanogaster/dmel_r5.57_FB2014_03/fasta/dmel-all-chromosome-r5.57.fasta.gz
 
+.INTERMEDIATE: dmel-r5-clean.fasta
 dmel-r5-clean.fasta: dmel-all-chromosome-r5.57.fasta.gz
 	python clean_dmel_genome.py dmel-all-chromosome-r5.57.fasta.gz > dmel-r5-clean.fasta
 
 %.amb %.ann %.bwt %.pac %.sa: %
 	bwa index $^
 
+.INTERMEDIATE: dmel-r5-clean.fasta.fai
 dmel-r5-clean.fasta.fai: $(TMPINDEXFILES)
 	samtools faidx dmel-r5-clean.fasta
 
+.INTERMEDIATE: dmel-r5-clean.dict
 dmel-r5-clean.dict: dmel-r5-clean.fasta dmel-r5-clean.fasta.fai
 	java -jar $(PICARD) CreateSequenceDictionary \
 		R=dmel-r5-clean.fasta \
@@ -83,8 +86,8 @@ A7.fasta: dmel-r5-clean.fasta t7_all_sites_w_indels_final.vcf
 		-T FastaAlternateReferenceMaker \
 		-R dmel-r5-clean.fasta \
 		-V t7_all_sites_w_indels_final.vcf \
-		-o A7.fasta && \
-	rm t7_all_sites_w_indels_final.vcf.idx
+		-o A7.fasta
+	rm -f t7_all_sites_w_indels_final.vcf.idx
 
 
 A6.fasta: dmel-r5-clean.fasta b3886_all_sites_w_indels_final.vcf
@@ -92,16 +95,16 @@ A6.fasta: dmel-r5-clean.fasta b3886_all_sites_w_indels_final.vcf
 		-T FastaAlternateReferenceMaker \
 		-R dmel-r5-clean.fasta \
 		-V b3886_all_sites_w_indels_final.vcf \
-		-o A6.fasta && \
-	rm b3886_all_sites_w_indels_final.vcf.idx
+		-o A6.fasta
+	rm -f b3886_all_sites_w_indels_final.vcf.idx
 
 A7_calibration.fasta: dmel-r5-clean.fasta t7_calibration.vcf
 	java -jar $(GATK) \
 		-T FastaAlternateReferenceMaker \
 		-R dmel-r5-clean.fasta \
 		-V t7_calibration.vcf \
-		-o A7_calibration.fasta && \
-	rm t7_calibration.vcf.idx
+		-o A7_calibration.fasta
+	rm -f t7_calibration.vcf.idx
 
 
 A6_calibration.fasta: dmel-r5-clean.fasta b3886_calibration.vcf
@@ -109,8 +112,8 @@ A6_calibration.fasta: dmel-r5-clean.fasta b3886_calibration.vcf
 		-T FastaAlternateReferenceMaker \
 		-R dmel-r5-clean.fasta \
 		-V b3886_calibration.vcf \
-		-o A6_calibration.fasta && \
-	rm b3886_calibration.vcf.idx
+		-o A6_calibration.fasta
+	rm -f b3886_calibration.vcf.idx
 
 clean:
 	rm -rf *.vcf *.idx *.fai *.fasta *.dict $(INDEXFILES) $(TMPINDEXFILES)
