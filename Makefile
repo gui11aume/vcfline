@@ -24,27 +24,33 @@ INDEXFILES= \
 
 all: $(INDEXFILES)
 
+# Download Drosophila genome.
 .INTERMEDIATE: dmel-all-chromosome-r5.57.fasta.gz
 dmel-all-chromosome-r5.57.fasta.gz:
 	wget ftp://flybase.org/genomes/Drosophila_melanogaster/dmel_r5.57_FB2014_03/fasta/dmel-all-chromosome-r5.57.fasta.gz
 
+# Keep only 2L, 2R, 3L, 3R, 4, X and the mitochrondria.
 .INTERMEDIATE: dmel-r5-clean.fasta
 dmel-r5-clean.fasta: dmel-all-chromosome-r5.57.fasta.gz
 	python clean_dmel_genome.py dmel-all-chromosome-r5.57.fasta.gz > dmel-r5-clean.fasta
 
+# Pattern rule to produce BWA indexes.
 %.amb %.ann %.bwt %.pac %.sa: %
 	bwa index $^
 
+# Index the cleaned genome.
 .INTERMEDIATE: dmel-r5-clean.fasta.fai
 dmel-r5-clean.fasta.fai: $(TMPINDEXFILES)
 	samtools faidx dmel-r5-clean.fasta
 
+# Use PICARD to create dictionary.
 .INTERMEDIATE: dmel-r5-clean.dict
 dmel-r5-clean.dict: dmel-r5-clean.fasta dmel-r5-clean.fasta.fai
 	java -jar $(PICARD) CreateSequenceDictionary \
 		R=dmel-r5-clean.fasta \
 		O=dmel-r5-clean.dict
 
+# Concatenate vcf files for SNPs and indels.
 .INTERMEDIATE: t7_all_sites_w_indels.vcf
 t7_all_sites_w_indels.vcf:
 	vcf-concat $(DATDIR)/t7_sites_full.vcf $(DATDIR)/t7_INDELS.vcf | \
@@ -55,6 +61,7 @@ b3886_all_sites_w_indels.vcf:
 	vcf-concat $(DATDIR)/b3886_sites_full.vcf $(DATDIR)/b3886_INDELS.vcf | \
 		python clean_vcf.py > b3886_all_sites_w_indels.vcf
 
+# Create a final vcf file for the first genome.
 .INTERMEDIATE: t7_all_sites_w_indels_final.vcf
 t7_all_sites_w_indels_final.vcf: t7_all_sites_w_indels.vcf dmel-r5-clean.dict
 	java -jar $(PICARD) SortVcf \
@@ -63,11 +70,13 @@ t7_all_sites_w_indels_final.vcf: t7_all_sites_w_indels.vcf dmel-r5-clean.dict
 		VERBOSITY=WARNING \
 		SEQUENCE_DICTIONARY=dmel-r5-clean.dict
 
+# Create a dummy vcf file for calibration and controls.
 .INTERMEDIATE: b3886_calibration.vcf
 b3886_calibration.vcf: b3886_all_sites_w_indels_final.vcf
 	python create_calibration_vcf.py \
 		b3886_all_sites_w_indels_final.vcf > b3886_calibration.vcf
 
+# Create a final vcf file for the second genome.
 .INTERMEDIATE: b3886_all_sites_w_indels_final.vcf
 b3886_all_sites_w_indels_final.vcf: b3886_all_sites_w_indels.vcf dmel-r5-clean.dict
 	java -jar $(PICARD) SortVcf \
@@ -76,11 +85,13 @@ b3886_all_sites_w_indels_final.vcf: b3886_all_sites_w_indels.vcf dmel-r5-clean.d
 		VERBOSITY=WARNING \
 		SEQUENCE_DICTIONARY=dmel-r5-clean.dict
 
+# Create a dummy vcf file for calibration and controls.
 .INTERMEDIATE: t7_calibration.vcf
 t7_calibration.vcf: t7_all_sites_w_indels_final.vcf
 	python create_calibration_vcf.py \
 		t7_all_sites_w_indels_final.vcf > t7_calibration.vcf
 
+# Create all the fasta files and remove intermediates.
 A7.fasta: dmel-r5-clean.fasta t7_all_sites_w_indels_final.vcf
 	java -jar $(GATK) \
 		-T FastaAlternateReferenceMaker \
@@ -117,3 +128,4 @@ A6_calibration.fasta: dmel-r5-clean.fasta b3886_calibration.vcf
 
 clean:
 	rm -rf *.vcf *.idx *.fai *.fasta *.dict $(INDEXFILES) $(TMPINDEXFILES)
+	rm -rf dmel-all-chromosome-r5.57.fasta.gz
