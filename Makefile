@@ -53,7 +53,7 @@ A6-soft.fasta: dmel.fasta dmel.fasta.fai dmel.dict
 		-V $(DATDIR)/$(A6SOFT) \
 		-o pre-A6-soft.fasta
 	python normalize_headers.py pre-A6-soft.fasta A6s > A6-soft.fasta
-	rm pre-A6-soft.fasta
+	#rm pre-A6-soft.fasta
 
 A7-soft.fasta: dmel.fasta dmel.fasta.fai dmel.dict
 	java -jar $(GATK) \

@@ -8,15 +8,16 @@ from gzopen import gzopen
 
 
 KEEP = {
-        "2L:1": "2L",
-        "2R:1": "2R",
-        "3L:1": "3L",
-        "3R:1": "3R",
-        "4:1":  "4",
-        "X:1":  "X",
-        "Y:1":  "Y",
-        "dmel_mitochondrion_genome:1": "mt",
+        " 2L:1": "2L",
+        " 2R:1": "2R",
+        " 3L:1": "3L",
+        " 3R:1": "3R",
+        " 4:1":  "4",
+        " X:1":  "X",
+        " Y:1":  "Y",
+        " dmel_mitochondrion_genome:1": "mt",
     }
+
 
 def read_genome(f, tag):
   '''Read a fasta file and return a dictionary whose keys are the
