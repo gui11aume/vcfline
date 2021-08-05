@@ -3,129 +3,102 @@ DATDIR= /data/DSPR
 PICARD= /home/REPLAY/software/picard/build/libs/picard.jar
 GATK= /home/REPLAY/software/GenomeAnalysisTK.jar
 
+A6SOFT= A6Q30.._A6_A7_joint_calls.vcf
+A7SOFT= A7Q30.._A6_A7_joint_calls.vcf
+A6MED= A6Q30.._A6_A7_joint_calls_medium_filtered_variants.vcf
+A7MED= A7Q30.._A6_A7_joint_calls_medium_filtered_variants.vcf
+A6HARD= A6Q30.._A6_A7_joint_calls_hard_filtered_variants.vcf
+A7HARD= A7Q30.._A6_A7_joint_calls_hard_filtered_variants.vcf
+
 TMPINDEXFILES= \
-	dmel-r5-clean.fasta.amb \
-	dmel-r5-clean.fasta.ann \
-	dmel-r5-clean.fasta.bwt \
-	dmel-r5-clean.fasta.pac \
-	dmel-r5-clean.fasta.sa
+	dmel.fasta.amb \
+	dmel.fasta.ann \
+	dmel.fasta.bwt \
+	dmel.fasta.pac \
+	dmel.fasta.sa
 
-INDEXFILES= \
-	A6.fasta.amb A7.fasta.amb \
-	A6.fasta.ann A7.fasta.ann \
-	A6.fasta.bwt A7.fasta.bwt \
-	A6.fasta.pac A7.fasta.pac \
-	A6.fasta.sa  A7.fasta.sa  \
-	A6_calibration.fasta.amb A7_calibration.fasta.amb \
-	A6_calibration.fasta.ann A7_calibration.fasta.ann \
-	A6_calibration.fasta.bwt A7_calibration.fasta.bwt \
-	A6_calibration.fasta.pac A7_calibration.fasta.pac \
-	A6_calibration.fasta.sa  A7_calibration.fasta.sa
+all: A6-soft.fasta A7-soft.fasta A6-med.fasta A7-med.fasta \
+	A6-hard.fasta A7-hard.fasta
 
-all: $(INDEXFILES)
-
-# Download Drosophila genome.
-.INTERMEDIATE: dmel-all-chromosome-r5.57.fasta.gz
-dmel-all-chromosome-r5.57.fasta.gz:
-	wget ftp://flybase.org/genomes/Drosophila_melanogaster/dmel_r5.57_FB2014_03/fasta/dmel-all-chromosome-r5.57.fasta.gz
-
-# Keep only 2L, 2R, 3L, 3R, 4, X and the mitochrondria.
-.INTERMEDIATE: dmel-r5-clean.fasta
-dmel-r5-clean.fasta: dmel-all-chromosome-r5.57.fasta.gz
-	python clean_dmel_genome.py dmel-all-chromosome-r5.57.fasta.gz > dmel-r5-clean.fasta
+# We do not use the genome from FlyBase. There is a difference in the
+# genome of the mitochondrion compared to ENSEMBL.
+#	wget ftp://ftp.flybase.net/genomes/Drosophila_melanogaster/dmel_r6.18_FB2017_05/fasta/dmel-all-chromosome-r6.18.fasta.gz
+	
+# Get Drosophila genome.
+.INTERMEDIATE: dmel.fasta
+dmel.fasta:
+	zcat Drosophila_melanogaster.BDGP6.dna.toplevel.fa.gz > dmel.fasta	
 
 # Pattern rule to produce BWA indexes.
 %.amb %.ann %.bwt %.pac %.sa: %
 	bwa index $^
 
 # Index the cleaned genome.
-.INTERMEDIATE: dmel-r5-clean.fasta.fai
-dmel-r5-clean.fasta.fai: $(TMPINDEXFILES)
-	samtools faidx dmel-r5-clean.fasta
+.INTERMEDIATE: dmel.fa.fai
+dmel.fasta.fai: $(TMPINDEXFILES)
+	samtools faidx dmel.fasta
 
 # Use PICARD to create dictionary.
-.INTERMEDIATE: dmel-r5-clean.dict
-dmel-r5-clean.dict: dmel-r5-clean.fasta dmel-r5-clean.fasta.fai
+.INTERMEDIATE: dmel.dict
+dmel.dict: dmel.fasta dmel.fasta.fai
 	java -jar $(PICARD) CreateSequenceDictionary \
-		R=dmel-r5-clean.fasta \
-		O=dmel-r5-clean.dict
+		R=dmel.fasta \
+		O=dmel.dict
 
-# Concatenate vcf files for SNPs and indels.
-.INTERMEDIATE: t7_all_sites_w_indels.vcf
-t7_all_sites_w_indels.vcf:
-	vcf-concat $(DATDIR)/t7_sites_full.vcf $(DATDIR)/t7_INDELS.vcf | \
-		python clean_vcf.py > t7_all_sites_w_indels.vcf
-
-.INTERMEDIATE: b3886_all_sites_w_indels.vcf
-b3886_all_sites_w_indels.vcf:
-	vcf-concat $(DATDIR)/b3886_sites_full.vcf $(DATDIR)/b3886_INDELS.vcf | \
-		python clean_vcf.py > b3886_all_sites_w_indels.vcf
-
-# Create a final vcf file for the first genome.
-.INTERMEDIATE: t7_all_sites_w_indels_final.vcf
-t7_all_sites_w_indels_final.vcf: t7_all_sites_w_indels.vcf dmel-r5-clean.dict
-	java -jar $(PICARD) SortVcf \
-		I=t7_all_sites_w_indels.vcf \
-		O=t7_all_sites_w_indels_final.vcf \
-		VERBOSITY=WARNING \
-		SEQUENCE_DICTIONARY=dmel-r5-clean.dict
-
-# Create a dummy vcf file for calibration and controls.
-.INTERMEDIATE: b3886_calibration.vcf
-b3886_calibration.vcf: b3886_all_sites_w_indels_final.vcf
-	python create_calibration_vcf.py \
-		b3886_all_sites_w_indels_final.vcf > b3886_calibration.vcf
-
-# Create a final vcf file for the second genome.
-.INTERMEDIATE: b3886_all_sites_w_indels_final.vcf
-b3886_all_sites_w_indels_final.vcf: b3886_all_sites_w_indels.vcf dmel-r5-clean.dict
-	java -jar $(PICARD) SortVcf \
-		I=b3886_all_sites_w_indels.vcf \
-		O=b3886_all_sites_w_indels_final.vcf \
-		VERBOSITY=WARNING \
-		SEQUENCE_DICTIONARY=dmel-r5-clean.dict
-
-# Create a dummy vcf file for calibration and controls.
-.INTERMEDIATE: t7_calibration.vcf
-t7_calibration.vcf: t7_all_sites_w_indels_final.vcf
-	python create_calibration_vcf.py \
-		t7_all_sites_w_indels_final.vcf > t7_calibration.vcf
-
-# Create all the fasta files and remove intermediates.
-A7.fasta: dmel-r5-clean.fasta t7_all_sites_w_indels_final.vcf
+# Create all the fasta files.
+A6-soft.fasta: dmel.fasta dmel.fasta.fai dmel.dict
 	java -jar $(GATK) \
 		-T FastaAlternateReferenceMaker \
-		-R dmel-r5-clean.fasta \
-		-V t7_all_sites_w_indels_final.vcf \
-		-o A7.fasta
-	rm -f t7_all_sites_w_indels_final.vcf.idx
+		-R dmel.fasta \
+		-V $(DATDIR)/$(A6SOFT) \
+		-o pre-A6-soft.fasta
+	python normalize_headers.py pre-A6-soft.fasta A6s > A6-soft.fasta
+	#rm pre-A6-soft.fasta
 
-
-A6.fasta: dmel-r5-clean.fasta b3886_all_sites_w_indels_final.vcf
+A7-soft.fasta: dmel.fasta dmel.fasta.fai dmel.dict
 	java -jar $(GATK) \
 		-T FastaAlternateReferenceMaker \
-		-R dmel-r5-clean.fasta \
-		-V b3886_all_sites_w_indels_final.vcf \
-		-o A6.fasta
-	rm -f b3886_all_sites_w_indels_final.vcf.idx
+		-R dmel.fasta \
+		-V $(DATDIR)/$(A7SOFT) \
+		-o pre-A7-soft.fasta
+	python normalize_headers.py pre-A7-soft.fasta A7s > A7-soft.fasta
+	rm pre-A7-soft.fasta
 
-A7_calibration.fasta: dmel-r5-clean.fasta t7_calibration.vcf
+A6-med.fasta: dmel.fasta dmel.fasta.fai dmel.dict
 	java -jar $(GATK) \
 		-T FastaAlternateReferenceMaker \
-		-R dmel-r5-clean.fasta \
-		-V t7_calibration.vcf \
-		-o A7_calibration.fasta
-	rm -f t7_calibration.vcf.idx
+		-R dmel.fasta \
+		-V $(DATDIR)/$(A6MED) \
+		-o pre-A6-med.fasta
+	python normalize_headers.py pre-A6-med.fasta A6m > A6-med.fasta
+	rm pre-A6-med.fasta
 
-
-A6_calibration.fasta: dmel-r5-clean.fasta b3886_calibration.vcf
+A7-med.fasta: dmel.fasta dmel.fasta.fai dmel.dict
 	java -jar $(GATK) \
 		-T FastaAlternateReferenceMaker \
-		-R dmel-r5-clean.fasta \
-		-V b3886_calibration.vcf \
-		-o A6_calibration.fasta
-	rm -f b3886_calibration.vcf.idx
+		-R dmel.fasta \
+		-V $(DATDIR)/$(A7MED) \
+		-o pre-A7-med.fasta
+	python normalize_headers.py pre-A7-med.fasta A7m > A7-med.fasta
+	rm pre-A7-med.fasta
+
+A6-hard.fasta: dmel.fasta dmel.fasta.fai dmel.dict
+	java -jar $(GATK) \
+		-T FastaAlternateReferenceMaker \
+		-R dmel.fasta \
+		-V $(DATDIR)/$(A6HARD) \
+		-o pre-A6-hard.fasta
+	python normalize_headers.py pre-A6-hard.fasta A6h > A6-hard.fasta
+	rm pre-A6-hard.fasta
+
+A7-hard.fasta: dmel.fasta dmel.fasta.fai dmel.dict
+	java -jar $(GATK) \
+		-T FastaAlternateReferenceMaker \
+		-R dmel.fasta \
+		-V $(DATDIR)/$(A7HARD) \
+		-o pre-A7-hard.fasta
+	python normalize_headers.py pre-A7-hard.fasta A7h > A7-hard.fasta
+	rm pre-A7-hard.fasta
 
 clean:
-	rm -rf *.vcf *.idx *.fai *.fasta *.dict $(INDEXFILES) $(TMPINDEXFILES)
-	rm -rf dmel-all-chromosome-r5.57.fasta.gz
+	rm -rf *.vcf *.idx *.fai *.fasta *.dict $(TMPINDEXFILES)
